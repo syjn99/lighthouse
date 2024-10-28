@@ -128,13 +128,6 @@ async fn light_client_bootstrap_test() {
         )
         .await;
 
-    let current_state = harness.get_current_state();
-
-    if ForkName::Electra == current_state.fork_name_unchecked() {
-        // TODO(electra) fix beacon state `compute_merkle_proof`
-        return;
-    }
-
     let finalized_checkpoint = harness
         .chain
         .canonical_head
@@ -198,11 +191,6 @@ async fn light_client_updates_test() {
         .await;
 
     let current_state = harness.get_current_state();
-
-    if ForkName::Electra == current_state.fork_name_unchecked() {
-        // TODO(electra) fix beacon state `compute_merkle_proof`
-        return;
-    }
 
     // calculate the sync period from the previous slot
     let sync_period = (current_state.slot() - Slot::new(1))

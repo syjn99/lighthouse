@@ -40,7 +40,6 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use types::data_column_sidecar::{ColumnIndex, DataColumnSidecar, DataColumnSidecarList};
-use types::light_client_update::CurrentSyncCommitteeProofLen;
 use types::*;
 use zstd::{Decoder, Encoder};
 
@@ -703,15 +702,14 @@ impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> HotColdDB<E, Hot, Cold> 
     pub fn get_sync_committee_branch(
         &self,
         block_root: &Hash256,
-    ) -> Result<Option<FixedVector<Hash256, CurrentSyncCommitteeProofLen>>, Error> {
+    ) -> Result<Option<MerkleProof>, Error> {
         let column = DBColumn::SyncCommitteeBranch;
 
         if let Some(bytes) = self
             .hot_db
             .get_bytes(column.into(), &block_root.as_ssz_bytes())?
         {
-            let sync_committee_branch: FixedVector<Hash256, CurrentSyncCommitteeProofLen> =
-                FixedVector::from_ssz_bytes(&bytes)?;
+            let sync_committee_branch = Vec::<Hash256>::from_ssz_bytes(&bytes)?;
             return Ok(Some(sync_committee_branch));
         }
 
@@ -739,7 +737,7 @@ impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> HotColdDB<E, Hot, Cold> 
     pub fn store_sync_committee_branch(
         &self,
         block_root: Hash256,
-        sync_committee_branch: &FixedVector<Hash256, CurrentSyncCommitteeProofLen>,
+        sync_committee_branch: &MerkleProof,
     ) -> Result<(), Error> {
         let column = DBColumn::SyncCommitteeBranch;
         self.hot_db.put_bytes(
