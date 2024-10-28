@@ -7,7 +7,7 @@ use std::io::Write;
 use std::num::NonZeroUsize;
 use superstruct::superstruct;
 use types::non_zero_usize::new_non_zero_usize;
-use types::{EthSpec, Unsigned};
+use types::EthSpec;
 use zstd::Encoder;
 
 // Only used in tests. Mainnet sets a higher default on the CLI.
@@ -24,8 +24,6 @@ pub const DEFAULT_BLOB_PUNE_MARGIN_EPOCHS: u64 = 0;
 /// Database configuration parameters.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StoreConfig {
-    /// Number of epochs between state diffs in the hot database.
-    pub epochs_per_state_diff: u64,
     /// Maximum number of blocks to store in the in-memory block cache.
     pub block_cache_size: NonZeroUsize,
     /// Maximum number of states to store in the in-memory state cache.
@@ -91,10 +89,6 @@ pub enum StoreConfigError {
         config: OnDiskStoreConfig,
         on_disk: OnDiskStoreConfig,
     },
-    InvalidEpochsPerStateDiff {
-        epochs_per_state_diff: u64,
-        max_supported: u64,
-    },
     ZeroEpochsPerBlobPrune,
     InvalidVersionByte(Option<u8>),
 }
@@ -102,7 +96,6 @@ pub enum StoreConfigError {
 impl Default for StoreConfig {
     fn default() -> Self {
         Self {
-            epochs_per_state_diff: DEFAULT_EPOCHS_PER_STATE_DIFF,
             block_cache_size: DEFAULT_BLOCK_CACHE_SIZE,
             state_cache_size: DEFAULT_STATE_CACHE_SIZE,
             historic_state_cache_size: DEFAULT_HISTORIC_STATE_CACHE_SIZE,
@@ -152,8 +145,7 @@ impl StoreConfig {
     /// Check that the configuration is valid.
     pub fn verify<E: EthSpec>(&self) -> Result<(), StoreConfigError> {
         self.verify_compression_level()?;
-        self.verify_epochs_per_blob_prune()?;
-        self.verify_epochs_per_state_diff::<E>()
+        self.verify_epochs_per_blob_prune()
     }
 
     /// Check that the compression level is valid.
@@ -163,21 +155,6 @@ impl StoreConfig {
         } else {
             Err(StoreConfigError::InvalidCompressionLevel {
                 level: self.compression_level,
-            })
-        }
-    }
-
-    /// Check that the configuration is valid.
-    pub fn verify_epochs_per_state_diff<E: EthSpec>(&self) -> Result<(), StoreConfigError> {
-        // To build state diffs we need to be able to determine the previous state root from the
-        // state itself, which requires reading back in the state_roots array.
-        let max_supported = E::SlotsPerHistoricalRoot::to_u64() / E::slots_per_epoch();
-        if self.epochs_per_state_diff <= max_supported {
-            Ok(())
-        } else {
-            Err(StoreConfigError::InvalidEpochsPerStateDiff {
-                epochs_per_state_diff: self.epochs_per_state_diff,
-                max_supported,
             })
         }
     }
