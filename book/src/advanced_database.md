@@ -87,15 +87,15 @@ lighthouse beacon_node --historic-state-cache-size 4
 
 ## Glossary
 
-* _Freezer DB_: part of the database storing finalized states. States are stored in a sparser
+- _Freezer DB_: part of the database storing finalized states. States are stored in a sparser
   format, and usually less frequently than in the hot DB.
-* _Cold DB_: see _Freezer DB_.
-* _HDiff_: hierarchical state diff.
-* _Hierarchy Exponents_: configuration for hierarchical state diffs, which determines the density
+- _Cold DB_: see _Freezer DB_.
+- _HDiff_: hierarchical state diff.
+- _Hierarchy Exponents_: configuration for hierarchical state diffs, which determines the density
   of stored diffs and snapshots in the freezer DB.
-* _Hot DB_: part of the database storing recent states, all blocks, and other runtime data. Full
+- _Hot DB_: part of the database storing recent states, all blocks, and other runtime data. Full
   states are stored every epoch.
-* _Snapshot_: a full `BeaconState` stored periodically in the freezer DB. Yearly by default.
-* _Split Slot_: the slot at which states are divided between the hot and the cold DBs. All states
+- _Snapshot_: a full `BeaconState` stored periodically in the freezer DB. Yearly by default.
+- _Split Slot_: the slot at which states are divided between the hot and the cold DBs. All states
   from slots less than the split slot are in the freezer, while all states with slots greater than
   or equal to the split slot are in the hot DB.
