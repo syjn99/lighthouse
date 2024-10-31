@@ -2717,7 +2717,7 @@ pub fn serve<T: BeaconChainTypes>(
                         debug!(
                             log,
                             "HTTP state load";
-                            "load_time_ms" => t.elapsed().as_millis(),
+                            "total_time_ms" => t.elapsed().as_millis(),
                             "target_slot" => state.slot()
                         );
 

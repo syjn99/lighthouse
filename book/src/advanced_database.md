@@ -95,7 +95,8 @@ lighthouse beacon_node --historic-state-cache-size 4
   of stored diffs and snapshots in the freezer DB.
 - _Hot DB_: part of the database storing recent states, all blocks, and other runtime data. Full
   states are stored every epoch.
-- _Snapshot_: a full `BeaconState` stored periodically in the freezer DB. Yearly by default.
+- _Snapshot_: a full `BeaconState` stored periodically in the freezer DB. Approximately yearly by
+  default (every ~291 days).
 - _Split Slot_: the slot at which states are divided between the hot and the cold DBs. All states
   from slots less than the split slot are in the freezer, while all states with slots greater than
   or equal to the split slot are in the hot DB.

@@ -171,6 +171,8 @@ impl StoreConfig {
 
     /// Estimate the size of `len` bytes after compression at the current compression level.
     pub fn estimate_compressed_size(&self, len: usize) -> usize {
+        // This is a rough estimate, but for our data it seems that all non-zero compression levels
+        // provide a similar compression ratio.
         if self.compression_level == 0 {
             len
         } else {

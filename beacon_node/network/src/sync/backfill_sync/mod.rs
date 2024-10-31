@@ -158,11 +158,8 @@ impl<T: BeaconChainTypes> BackFillSync<T> {
         log: slog::Logger,
     ) -> Self {
         // Determine if backfill is enabled or not.
-        // Get the anchor info, if this returns None, then backfill is not required for this
-        // running instance.
         // If, for some reason a backfill has already been completed (or we've used a trusted
         // genesis root) then backfill has been completed.
-
         let anchor_info = beacon_chain.store.get_anchor_info();
         let (state, current_start) =
             if anchor_info.block_backfill_complete(beacon_chain.genesis_backfill_slot) {
@@ -251,6 +248,8 @@ impl<T: BeaconChainTypes> BackFillSync<T> {
 
                 // Obtain a new start slot, from the beacon chain and handle possible errors.
                 if let Err(e) = self.reset_start_epoch() {
+                    // This infallible match exists to force us to update this code if a future
+                    // refactor of `ResetEpochError` adds a variant.
                     let ResetEpochError::SyncCompleted = e;
                     error!(self.log, "Backfill sync completed whilst in failed status");
                     self.set_state(BackFillState::Completed);
