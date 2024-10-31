@@ -1796,13 +1796,9 @@ impl<E: EthSpec, Hot: ItemStore<E>, Cold: ItemStore<E>> HotColdDB<E, Hot, Cold> 
                 Ok(state)
             }
             StorageStrategy::ReplayFrom(from) => {
-                let base_state = if let Some(state) = cached_state {
-                    // Found a prior state in the historic state cache.
-                    state
-                } else {
-                    // No prior state found, need to load by diffing.
-                    self.load_cold_state_by_slot(from)?
-                };
+                // No prior state found in cache (above), need to load by diffing and then
+                // replaying.
+                let base_state = self.load_cold_state_by_slot(from)?;
                 self.load_cold_state_by_slot_using_replay(base_state, slot)
             }
         }
