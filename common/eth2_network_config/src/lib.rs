@@ -154,23 +154,29 @@ impl Eth2NetworkConfig {
         }
     }
 
+    /// Get the genesis state root for this network.
+    ///
+    /// `Ok(None)` will be returned if the genesis state is not known. No network requests will be
+    /// made by this function. This function will not error unless the genesis state configuration
+    /// is corrupted.
     pub fn genesis_state_root<E: EthSpec>(&self) -> Result<Option<Hash256>, String> {
-        if let GenesisStateSource::Url {
-            genesis_state_root, ..
-        } = self.genesis_state_source
-        {
-            Hash256::from_str(genesis_state_root)
+        match self.genesis_state_source {
+            GenesisStateSource::Unknown => Ok(None),
+            GenesisStateSource::Url {
+                genesis_state_root, ..
+            } => Hash256::from_str(genesis_state_root)
                 .map(Option::Some)
-                .map_err(|e| format!("Unable to parse genesis state root: {:?}", e))
-        } else {
-            self.get_genesis_state_from_bytes::<E>()
-                .and_then(|mut state| {
-                    Ok(Some(
-                        state
-                            .canonical_root()
-                            .map_err(|e| format!("Hashing error: {e:?}"))?,
-                    ))
-                })
+                .map_err(|e| format!("Unable to parse genesis state root: {:?}", e)),
+            GenesisStateSource::IncludedBytes => {
+                self.get_genesis_state_from_bytes::<E>()
+                    .and_then(|mut state| {
+                        Ok(Some(
+                            state
+                                .canonical_root()
+                                .map_err(|e| format!("Hashing error: {e:?}"))?,
+                        ))
+                    })
+            }
         }
     }
 
