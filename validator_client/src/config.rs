@@ -23,6 +23,9 @@ use validator_store::Config as ValidatorStoreConfig;
 
 pub const DEFAULT_BEACON_NODE: &str = "http://localhost:5052/";
 
+/// The default name of the file which stores the API token.
+pub const PK_FILENAME: &str = "api-token.txt";
+
 /// Stores the core configuration for this validator instance.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -33,6 +36,8 @@ pub struct Config {
     pub validator_dir: PathBuf,
     /// The directory containing the passwords to unlock validator keystores.
     pub secrets_dir: PathBuf,
+    /// The path to the HTTP API token file for validator client authentication.
+    pub http_token_path: PathBuf,
     /// The http endpoints of the beacon node APIs.
     ///
     /// Should be similar to `["http://localhost:8080"]`
@@ -97,6 +102,7 @@ impl Default for Config {
             .join(DEFAULT_HARDCODED_NETWORK);
         let validator_dir = base_dir.join(DEFAULT_VALIDATOR_DIR);
         let secrets_dir = base_dir.join(DEFAULT_SECRET_DIR);
+        let http_token_path = validator_dir.join(PK_FILENAME);
 
         let beacon_nodes = vec![SensitiveUrl::parse(DEFAULT_BEACON_NODE)
             .expect("beacon_nodes must always be a valid url.")];
@@ -104,6 +110,7 @@ impl Default for Config {
             validator_store: ValidatorStoreConfig::default(),
             validator_dir,
             secrets_dir,
+            http_token_path,
             beacon_nodes,
             proposer_nodes: Vec::new(),
             allow_unsynced_beacon_node: false,
@@ -139,17 +146,26 @@ impl Config {
             .map(|home| home.join(DEFAULT_ROOT_DIR))
             .unwrap_or_else(|| PathBuf::from("."));
 
-        let (mut validator_dir, mut secrets_dir) = (None, None);
+        let (mut validator_dir, mut secrets_dir, mut http_token_path) = (None, None, None);
         if cli_args.get_one::<String>("datadir").is_some() {
             let base_dir: PathBuf = parse_required(cli_args, "datadir")?;
             validator_dir = Some(base_dir.join(DEFAULT_VALIDATOR_DIR));
             secrets_dir = Some(base_dir.join(DEFAULT_SECRET_DIR));
+            http_token_path = Some(
+                validator_dir
+                    .as_ref()
+                    .expect("validator_dir must be Some")
+                    .join(PK_FILENAME),
+            );
         }
         if cli_args.get_one::<String>("validators-dir").is_some() {
             validator_dir = Some(parse_required(cli_args, "validators-dir")?);
         }
         if cli_args.get_one::<String>("secrets-dir").is_some() {
             secrets_dir = Some(parse_required(cli_args, "secrets-dir")?);
+        }
+        if cli_args.get_one::<String>("http-token-path").is_some() {
+            http_token_path = Some(parse_required(cli_args, "http-token-path")?);
         }
 
         config.validator_dir = validator_dir.unwrap_or_else(|| {
@@ -163,6 +179,9 @@ impl Config {
                 .join(get_network_dir(cli_args))
                 .join(DEFAULT_SECRET_DIR)
         });
+
+        config.http_token_path =
+            http_token_path.unwrap_or_else(|| config.validator_dir.join(PK_FILENAME));
 
         if !config.validator_dir.exists() {
             fs::create_dir_all(&config.validator_dir)
