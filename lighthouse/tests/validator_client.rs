@@ -84,6 +84,17 @@ fn validators_dir_alias_flags() {
 }
 
 #[test]
+fn http_token_path_flag() {
+    let dir = TempDir::new().expect("Unable to create temporary directory");
+    CommandLineTest::new()
+        .flag("http-token-path", dir.path().join("api-token.txt").to_str())
+        .run_with_no_datadir()
+        .with_config(|config| {
+            assert_eq!(config.http_token_path, dir.path().join("api-token.txt"));
+        });
+}
+
+#[test]
 fn beacon_nodes_flag() {
     CommandLineTest::new()
         .flag(
