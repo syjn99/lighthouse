@@ -73,6 +73,7 @@ impl ApiTester {
 
         let validator_dir = tempdir().unwrap();
         let secrets_dir = tempdir().unwrap();
+        let token_path = tempdir().unwrap().path().join("api-token.txt");
 
         let validator_defs = ValidatorDefinitions::open_or_create(validator_dir.path()).unwrap();
 
@@ -85,7 +86,7 @@ impl ApiTester {
         .await
         .unwrap();
 
-        let api_secret = ApiSecret::create_or_open(validator_dir.path()).unwrap();
+        let api_secret = ApiSecret::create_or_open(token_path).unwrap();
         let api_pubkey = api_secret.api_token();
 
         let config = ValidatorStoreConfig {
@@ -199,8 +200,8 @@ impl ApiTester {
     }
 
     pub fn invalid_token_client(&self) -> ValidatorClientHttpClient {
-        let tmp = tempdir().unwrap();
-        let api_secret = ApiSecret::create_or_open(tmp.path()).unwrap();
+        let tmp = tempdir().unwrap().path().join("invalid-token.txt");
+        let api_secret = ApiSecret::create_or_open(tmp).unwrap();
         let invalid_pubkey = api_secret.api_token();
         ValidatorClientHttpClient::new(self.url.clone(), invalid_pubkey).unwrap()
     }

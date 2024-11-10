@@ -34,6 +34,15 @@ impl ApiSecret {
     /// write it to disk (over-writing any existing files).
     pub fn create_or_open<P: AsRef<Path>>(pk_path: P) -> Result<Self, String> {
         let pk_path = pk_path.as_ref();
+
+        // Check if the path is a directory
+        if pk_path.is_dir() {
+            return Err(format!(
+                "API token path {:?} is a directory, not a file",
+                pk_path
+            ));
+        }
+
         if !pk_path.exists() {
             // Create parent directories if they don't exist
             if let Some(parent) = pk_path.parent() {
