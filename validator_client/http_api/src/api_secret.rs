@@ -7,6 +7,9 @@ use warp::Filter;
 
 pub const PK_LEN: usize = 33;
 
+/// The default name of the file which stores the API token.
+pub const PK_FILENAME: &str = "api-token.txt";
+
 /// Contains a randomly generated string which is used for authorization of requests to the HTTP API.
 ///
 /// Provides convenience functions to ultimately provide:

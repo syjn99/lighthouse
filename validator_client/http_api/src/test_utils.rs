@@ -1,3 +1,4 @@
+use crate::api_secret::PK_FILENAME;
 use crate::{ApiSecret, Config as HttpConfig, Context};
 use account_utils::validator_definitions::ValidatorDefinitions;
 use account_utils::{
@@ -73,7 +74,7 @@ impl ApiTester {
 
         let validator_dir = tempdir().unwrap();
         let secrets_dir = tempdir().unwrap();
-        let token_path = tempdir().unwrap().path().join("api-token.txt");
+        let token_path = tempdir().unwrap().path().join(PK_FILENAME);
 
         let validator_defs = ValidatorDefinitions::open_or_create(validator_dir.path()).unwrap();
 
@@ -178,6 +179,7 @@ impl ApiTester {
             allow_origin: None,
             allow_keystore_export: true,
             store_passwords_in_secrets_dir: false,
+            http_token_path: tempdir().unwrap().path().join(PK_FILENAME),
         }
     }
 

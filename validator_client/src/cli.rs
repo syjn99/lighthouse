@@ -80,19 +80,6 @@ pub fn cli_app() -> Command {
                 .display_order(0)
         )
         .arg(
-            Arg::new("http-token-path")
-                .long("http-token-path")
-                .value_name("HTTP_TOKEN_PATH")
-                .help(
-                    "Path to file containing the HTTP API token for validator client authentication. \
-                    If not specified, defaults to {validators-dir}/api-token.txt. \
-                    The file will be created if it does not exist.",
-                )
-                .action(ArgAction::Set)
-                .conflicts_with("datadir")
-                .display_order(0)
-        )
-        .arg(
             Arg::new("init-slashing-protection")
                 .long("init-slashing-protection")
                 .action(ArgAction::SetTrue)
@@ -258,6 +245,19 @@ pub fn cli_app() -> Command {
                     definitions file.")
                 .action(ArgAction::SetTrue)
                 .help_heading(FLAG_HEADER)
+                .display_order(0)
+        )
+        .arg(
+            Arg::new("http-token-path")
+                .long("http-token-path")
+                .requires("http")
+                .value_name("HTTP_TOKEN_PATH")
+                .help(
+                    "Path to file containing the HTTP API token for validator client authentication. \
+                    If not specified, defaults to {validators-dir}/api-token.txt. \
+                    The file will be created if it does not exist.",
+                )
+                .action(ArgAction::Set)
                 .display_order(0)
         )
         /* Prometheus metrics HTTP server related arguments */
