@@ -315,8 +315,9 @@ impl Config {
         }
 
         if cli_args.get_one::<String>("http-token-path").is_some() {
-            config.http_api.http_token_path = Some(parse_required(cli_args, "http-token-path")?)
-                .unwrap_or_else(|| config.validator_dir.join(PK_FILENAME));
+            config.http_api.http_token_path = parse_required(cli_args, "http-token-path")
+                // For backward compatibility, default to the path under the validator dir if not provided.
+                .unwrap_or_else(|_| config.validator_dir.join(PK_FILENAME));
         }
 
         /*
