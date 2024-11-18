@@ -5,10 +5,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use warp::Filter;
 
-pub const PK_LEN: usize = 33;
-
 /// The default name of the file which stores the API token.
 pub const PK_FILENAME: &str = "api-token.txt";
+
+pub const PK_LEN: usize = 33;
 
 /// Contains a randomly generated string which is used for authorization of requests to the HTTP API.
 ///
