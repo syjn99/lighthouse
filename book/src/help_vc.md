@@ -72,8 +72,7 @@ Options:
       --http-token-path <HTTP_TOKEN_PATH>
           Path to file containing the HTTP API token for validator client
           authentication. If not specified, defaults to
-          {validators-dir}/api-token.txt. The file will be created if it does
-          not exist.
+          {validators-dir}/api-token.txt. 
       --log-format <FORMAT>
           Specifies the log format used when emitting logs to the terminal.
           [possible values: JSON]
