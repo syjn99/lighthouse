@@ -254,8 +254,7 @@ pub fn cli_app() -> Command {
                 .value_name("HTTP_TOKEN_PATH")
                 .help(
                     "Path to file containing the HTTP API token for validator client authentication. \
-                    If not specified, defaults to {validators-dir}/api-token.txt. \
-                    The file will be created if it does not exist.",
+                    If not specified, defaults to {validators-dir}/api-token.txt."
                 )
                 .action(ArgAction::Set)
                 .display_order(0)
