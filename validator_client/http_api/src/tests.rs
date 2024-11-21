@@ -75,7 +75,7 @@ impl ApiTester {
         .await
         .unwrap();
 
-        let api_secret = ApiSecret::create_or_open(token_path).unwrap();
+        let api_secret = ApiSecret::create_or_open(&token_path).unwrap();
         let api_pubkey = api_secret.api_token();
 
         let spec = Arc::new(E::default_spec());
@@ -127,6 +127,7 @@ impl ApiTester {
                 allow_origin: None,
                 allow_keystore_export: true,
                 store_passwords_in_secrets_dir: false,
+                http_token_path: token_path,
             },
             sse_logging_components: None,
             log,

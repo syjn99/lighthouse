@@ -84,17 +84,6 @@ fn validators_dir_alias_flags() {
 }
 
 #[test]
-fn http_token_path_flag() {
-    let dir = TempDir::new().expect("Unable to create temporary directory");
-    CommandLineTest::new()
-        .flag("http-token-path", dir.path().join("api-token.txt").to_str())
-        .run_with_no_datadir()
-        .with_config(|config| {
-            assert_eq!(config.http_token_path, dir.path().join("api-token.txt"));
-        });
-}
-
-#[test]
 fn beacon_nodes_flag() {
     CommandLineTest::new()
         .flag(
@@ -353,6 +342,21 @@ fn http_store_keystore_passwords_in_secrets_dir_present() {
         .flag("http-store-passwords-in-secrets-dir", None)
         .run()
         .with_config(|config| assert!(config.http_api.store_passwords_in_secrets_dir));
+}
+
+#[test]
+fn http_token_path_flag() {
+    let dir = TempDir::new().expect("Unable to create temporary directory");
+    CommandLineTest::new()
+        .flag("http", None)
+        .flag("http-token-path", dir.path().join("api-token.txt").to_str())
+        .run()
+        .with_config(|config| {
+            assert_eq!(
+                config.http_api.http_token_path,
+                dir.path().join("api-token.txt")
+            );
+        });
 }
 
 // Tests for Metrics flags.
