@@ -60,6 +60,9 @@ pub enum Error {
     InvalidInfinityPublicKey,
     /// The secret key is all zero bytes, which is invalid.
     InvalidZeroSecretKey,
+    /// An error occurred during the deserialization of a public key.
+    #[cfg(feature = "zkcrypto")]
+    InvalidTorsionComponent,
 }
 
 #[cfg(feature = "supranational")]

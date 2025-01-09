@@ -1,3 +1,5 @@
+use bls12_381::{G1Affine, G1Projective};
+
 use crate::{
     generic_aggregate_public_key::TAggregatePublicKey,
     generic_aggregate_signature::TAggregateSignature,
@@ -6,6 +8,7 @@ use crate::{
     },
     generic_secret_key::{TSecretKey, SECRET_KEY_BYTES_LEN},
     generic_signature::{TSignature, SIGNATURE_BYTES_LEN},
+    generics::GenericAggregatePublicKey,
     Error, Hash256, ZeroizeHash, INFINITY_PUBLIC_KEY, INFINITY_SIGNATURE,
 };
 
@@ -34,67 +37,63 @@ pub fn verify_signature_sets<'a>(
     panic!("implement me")
 }
 
-#[derive(Clone)]
-pub struct PublicKey([u8; PUBLIC_KEY_BYTES_LEN]);
-
-impl PublicKey {
-    fn infinity() -> Self {
-        Self(INFINITY_PUBLIC_KEY)
-    }
-}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct PublicKey(G1Projective);
 
 impl TPublicKey for PublicKey {
     fn serialize(&self) -> [u8; PUBLIC_KEY_BYTES_LEN] {
-        panic!("implement me")
-        // self.0
+        G1Affine::from(self.0).to_compressed()
     }
 
     fn serialize_uncompressed(&self) -> [u8; PUBLIC_KEY_UNCOMPRESSED_BYTES_LEN] {
-        panic!("implement me")
+        G1Affine::from(self.0).to_uncompressed()
     }
 
     fn deserialize(bytes: &[u8]) -> Result<Self, Error> {
-        panic!("implement me")
-        // let mut pubkey = Self::infinity();
-        // pubkey.0[..].copy_from_slice(&bytes[0..PUBLIC_KEY_BYTES_LEN]);
-        // Ok(pubkey)
+        let sliced_bytes: &[u8; PUBLIC_KEY_BYTES_LEN] = bytes.as_ref().try_into().unwrap();
+        let point = G1Affine::from_compressed(sliced_bytes).unwrap();
+
+        if bool::from(point.is_identity()) {
+            return Err(Error::InvalidInfinityPublicKey);
+        }
+
+        if !bool::from(point.is_torsion_free()) {
+            return Err(Error::InvalidTorsionComponent);
+        }
+
+        Ok(Self(point.into()))
     }
 
-    fn deserialize_uncompressed(_: &[u8]) -> Result<Self, Error> {
-        panic!("implement me")
+    fn deserialize_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
+        let sliced_bytes: &[u8; PUBLIC_KEY_UNCOMPRESSED_BYTES_LEN] =
+            bytes.as_ref().try_into().unwrap();
+        let point = G1Affine::from_uncompressed(sliced_bytes).unwrap();
+
+        if bool::from(point.is_identity()) {
+            return Err(Error::InvalidInfinityPublicKey);
+        }
+
+        if !bool::from(point.is_torsion_free()) {
+            return Err(Error::InvalidTorsionComponent);
+        }
+
+        Ok(Self(point.into()))
     }
 }
 
-impl Eq for PublicKey {}
-
-impl PartialEq for PublicKey {
-    fn eq(&self, other: &Self) -> bool {
-        panic!("implement me")
-        // self.0[..] == other.0[..]
-    }
-}
-
-#[derive(Clone)]
-pub struct AggregatePublicKey([u8; PUBLIC_KEY_BYTES_LEN]);
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct AggregatePublicKey(G1Projective);
 
 impl TAggregatePublicKey<PublicKey> for AggregatePublicKey {
     fn to_public_key(&self) -> GenericPublicKey<PublicKey> {
-        panic!("implement me")
-        // GenericPublicKey::from_point(PublicKey(self.0))
+        GenericPublicKey::from_point(PublicKey(self.0))
     }
 
-    fn aggregate(_pubkeys: &[GenericPublicKey<PublicKey>]) -> Result<Self, Error> {
-        panic!("implement me")
-        // Ok(Self(INFINITY_PUBLIC_KEY))
-    }
-}
-
-impl Eq for AggregatePublicKey {}
-
-impl PartialEq for AggregatePublicKey {
-    fn eq(&self, other: &Self) -> bool {
-        panic!("implement me")
-        // self.0[..] == other.0[..]
+    fn aggregate(pubkeys: &[GenericPublicKey<PublicKey>]) -> Result<Self, Error> {
+        pubkeys.iter().try_fold(
+            AggregatePublicKey(G1Projective::identity()),
+            |acc, pubkey| Ok(AggregatePublicKey(acc.0.add(&pubkey.point().0))),
+        )
     }
 }
 
