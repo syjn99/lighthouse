@@ -37,7 +37,6 @@ pub type SignatureSet<'a> = crate::generic_signature_set::GenericSignatureSet<
     AggregateSignature,
 >;
 
-// TODO: Verify sets more strictly
 pub fn verify_signature_sets<'a>(
     signature_sets: impl ExactSizeIterator<Item = &'a SignatureSet<'a>>,
 ) -> bool {
@@ -47,7 +46,66 @@ pub fn verify_signature_sets<'a>(
         return false;
     }
 
-    true
+    let rng = &mut rand::thread_rng();
+
+    // Generate random scalars for each set
+    let mut rands: Vec<Scalar> = Vec::with_capacity(sets.len());
+    for _ in 0..sets.len() {
+        let mut buf = [0u8; 64];
+        while buf[0] == 0 {
+            rng.fill_bytes(&mut buf);
+        }
+        rands.push(Scalar::from_bytes_wide(&buf));
+    }
+
+    // Accumulate (e_i * s_i) and (e_i * h(m_i) * P_i) for each set i
+    let mut agg_sig = G2Projective::identity();
+    let mut agg_pubkey_times_message = G1Projective::identity();
+
+    for (set, rand) in sets.iter().zip(rands.iter()) {
+        // Verify signature point exists and is in correct subgroup
+        let Some(sig_point) = set.signature.point() else {
+            return false;
+        };
+        if !bool::from(G2Affine::from(sig_point.0).is_torsion_free()) {
+            return false;
+        }
+
+        // Verify we have signing keys
+        if set.signing_keys.is_empty() {
+            return false;
+        }
+
+        // Aggregate public keys
+        let agg_pk = set
+            .signing_keys
+            .iter()
+            .fold(G1Projective::identity(), |acc, pk| acc + pk.point().0);
+
+        // Hash message to curve
+        let h = <G2Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve(
+            &[set.message],
+            DST,
+        );
+
+        // Add to accumulators using random weight
+        agg_sig += sig_point.0 * rand;
+        agg_pubkey_times_message += agg_pk * rand;
+    }
+
+    // Final pairing check
+    let gt1 = pairing(&G1Affine::generator(), &G2Affine::from(agg_sig));
+    let gt2 = pairing(
+        &G1Affine::from(agg_pubkey_times_message),
+        &G2Affine::from(
+            <G2Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve(
+                &[sets[0].message],
+                DST,
+            ),
+        ),
+    );
+
+    gt1 == gt2
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
