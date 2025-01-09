@@ -1,7 +1,8 @@
 use bls12_381::{
     hash_to_curve::{ExpandMsgXmd, HashToCurve},
-    pairing, G1Affine, G1Projective, G2Affine, G2Projective,
+    pairing, G1Affine, G1Projective, G2Affine, G2Projective, Scalar,
 };
+use rand::{thread_rng, RngCore};
 
 use crate::{
     generic_aggregate_public_key::TAggregatePublicKey,
@@ -193,35 +194,35 @@ impl TAggregateSignature<PublicKey, AggregatePublicKey, Signature> for Aggregate
 }
 
 #[derive(Clone)]
-pub struct SecretKey([u8; SECRET_KEY_BYTES_LEN]);
+pub struct SecretKey(Scalar);
 
 impl TSecretKey<Signature, PublicKey> for SecretKey {
     fn random() -> Self {
-        panic!("implement me")
-        // Self([0; SECRET_KEY_BYTES_LEN])
+        let mut rng = thread_rng();
+        let mut buf = [0; 64];
+        rng.fill_bytes(&mut buf);
+        Self(Scalar::from_bytes_wide(&buf))
     }
 
     fn public_key(&self) -> PublicKey {
-        panic!("implement me")
-        // PublicKey::infinity()
+        let point = self.0 * G1Projective::generator();
+        PublicKey(point)
     }
 
-    fn sign(&self, _msg: Hash256) -> Signature {
-        panic!("implement me")
-        // Signature::infinity()
+    fn sign(&self, msg: Hash256) -> Signature {
+        let h =
+            <G2Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve(&[msg], DST);
+        let point = h * self.0;
+        Signature(point)
     }
 
     fn serialize(&self) -> ZeroizeHash {
-        panic!("implement me")
-        // let mut bytes = [0; SECRET_KEY_BYTES_LEN];
-        // bytes[..].copy_from_slice(&self.0[..]);
-        // bytes.into()
+        self.0.to_bytes().into()
     }
 
     fn deserialize(bytes: &[u8]) -> Result<Self, Error> {
-        panic!("implement me")
-        // let mut sk = Self::random();
-        // sk.0[..].copy_from_slice(&bytes[0..SECRET_KEY_BYTES_LEN]);
-        // Ok(sk)
+        let sliced_bytes: &[u8; SECRET_KEY_BYTES_LEN] = bytes.as_ref().try_into().unwrap();
+        let scalar = Scalar::from_bytes(sliced_bytes).unwrap();
+        Ok(Self(scalar))
     }
 }
