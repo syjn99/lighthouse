@@ -63,6 +63,9 @@ pub enum Error {
     /// An error occurred during the deserialization of a public key.
     #[cfg(feature = "zkcrypto")]
     InvalidTorsionComponent,
+    /// The provided signature bytes were invalid (e.g. identity).
+    #[cfg(feature = "zkcrypto")]
+    InvalidSignature,
 }
 
 #[cfg(feature = "supranational")]

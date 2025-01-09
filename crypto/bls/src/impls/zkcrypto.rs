@@ -1,4 +1,7 @@
-use bls12_381::{G1Affine, G1Projective};
+use bls12_381::{
+    hash_to_curve::{ExpandMsgXmd, HashToCurve},
+    pairing, G1Affine, G1Projective, G2Affine, G2Projective,
+};
 
 use crate::{
     generic_aggregate_public_key::TAggregatePublicKey,
@@ -11,6 +14,8 @@ use crate::{
     generics::GenericAggregatePublicKey,
     Error, Hash256, ZeroizeHash, INFINITY_PUBLIC_KEY, INFINITY_SIGNATURE,
 };
+
+pub const DST: &[u8] = b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_";
 
 /// Provides the externally-facing, core BLS types.
 pub mod types {
@@ -97,118 +102,93 @@ impl TAggregatePublicKey<PublicKey> for AggregatePublicKey {
     }
 }
 
-#[derive(Clone)]
-pub struct Signature([u8; SIGNATURE_BYTES_LEN]);
-
-impl Signature {
-    fn infinity() -> Self {
-        panic!("implement me")
-        // Self([0; SIGNATURE_BYTES_LEN])
-    }
-}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Signature(G2Projective);
 
 impl TSignature<PublicKey> for Signature {
     fn serialize(&self) -> [u8; SIGNATURE_BYTES_LEN] {
-        panic!("implement me")
-        // self.0
+        G2Affine::from(self.0).to_compressed()
     }
 
     fn deserialize(bytes: &[u8]) -> Result<Self, Error> {
-        panic!("implement me")
-        // let mut signature = Self::infinity();
-        // signature.0[..].copy_from_slice(&bytes[0..SIGNATURE_BYTES_LEN]);
-        // Ok(signature)
+        let sliced_bytes: &[u8; SIGNATURE_BYTES_LEN] = bytes.as_ref().try_into().unwrap();
+        let point = G2Affine::from_compressed(sliced_bytes).unwrap();
+
+        if bool::from(point.is_identity()) {
+            return Err(Error::InvalidSignature);
+        }
+
+        if !bool::from(point.is_torsion_free()) {
+            return Err(Error::InvalidTorsionComponent);
+        }
+
+        Ok(Self(point.into()))
     }
 
-    fn verify(&self, _pubkey: &PublicKey, _msg: Hash256) -> bool {
-        panic!("implement me")
-        // true
+    fn verify(&self, pubkey: &PublicKey, msg: Hash256) -> bool {
+        let h =
+            <G2Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve(&[msg], DST);
+
+        let gt1 = pairing(&G1Affine::from(pubkey.0), &G2Affine::from(h));
+        let gt2 = pairing(&G1Affine::generator(), &G2Affine::from(self.0));
+
+        gt1 == gt2
     }
 }
-
-impl PartialEq for Signature {
-    fn eq(&self, other: &Self) -> bool {
-        panic!("implement me")
-        // self.0[..] == other.0[..]
-    }
-}
-
-impl Eq for Signature {}
 
 impl std::hash::Hash for Signature {
-    fn hash<H: std::hash::Hasher>(&self, hasher: &mut H) {
-        panic!("implement me")
-        // self.0.hash(hasher);
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.serialize().hash(state)
     }
 }
 
-#[derive(Clone)]
-pub struct AggregateSignature([u8; SIGNATURE_BYTES_LEN]);
-
-impl AggregateSignature {
-    fn infinity() -> Self {
-        panic!("implement me")
-        // Self(INFINITY_SIGNATURE)
-    }
-}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct AggregateSignature(G2Projective);
 
 impl TAggregateSignature<PublicKey, AggregatePublicKey, Signature> for AggregateSignature {
     fn infinity() -> Self {
-        panic!("implement me")
-        // Self::infinity()
+        Self(G2Projective::identity())
     }
 
-    fn add_assign(&mut self, _other: &Signature) {
-        panic!("implement me")
+    fn add_assign(&mut self, other: &Signature) {
+        self.0 = self.0.add(&other.0)
     }
 
-    fn add_assign_aggregate(&mut self, _other: &Self) {
-        panic!("implement me")
+    fn add_assign_aggregate(&mut self, other: &Self) {
+        self.0 = self.0.add(&other.0)
     }
 
     fn serialize(&self) -> [u8; SIGNATURE_BYTES_LEN] {
-        panic!("implement me")
-        // let mut bytes = [0; SIGNATURE_BYTES_LEN];
-
-        // bytes[..].copy_from_slice(&self.0);
-
-        // bytes
+        G2Affine::from(self.0).to_compressed()
     }
 
     fn deserialize(bytes: &[u8]) -> Result<Self, Error> {
-        panic!("implement me")
-        // let mut key = [0; SIGNATURE_BYTES_LEN];
+        let sliced_bytes: &[u8; SIGNATURE_BYTES_LEN] = bytes.as_ref().try_into().unwrap();
+        let point = G2Affine::from_compressed(sliced_bytes).unwrap();
 
-        // key[..].copy_from_slice(bytes);
+        if bool::from(point.is_identity()) {
+            return Err(Error::InvalidSignature);
+        }
 
-        // Ok(Self(key))
+        if !bool::from(point.is_torsion_free()) {
+            return Err(Error::InvalidTorsionComponent);
+        }
+
+        Ok(Self(point.into()))
     }
 
     fn fast_aggregate_verify(
         &self,
-        _msg: Hash256,
-        _pubkeys: &[&GenericPublicKey<PublicKey>],
+        msg: Hash256,
+        pubkeys: &[&GenericPublicKey<PublicKey>],
     ) -> bool {
         panic!("implement me")
         // true
     }
 
-    fn aggregate_verify(
-        &self,
-        _msgs: &[Hash256],
-        _pubkeys: &[&GenericPublicKey<PublicKey>],
-    ) -> bool {
+    fn aggregate_verify(&self, msgs: &[Hash256], pubkeys: &[&GenericPublicKey<PublicKey>]) -> bool {
         panic!("implement me")
         // true
-    }
-}
-
-impl Eq for AggregateSignature {}
-
-impl PartialEq for AggregateSignature {
-    fn eq(&self, other: &Self) -> bool {
-        panic!("implement me")
-        // self.0[..] == other.0[..]
     }
 }
 
