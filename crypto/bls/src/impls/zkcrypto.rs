@@ -242,7 +242,9 @@ impl TSecretKey<Signature, PublicKey> for SecretKey {
 
     fn deserialize(bytes: &[u8]) -> Result<Self, Error> {
         let sliced_bytes: &[u8; SECRET_KEY_BYTES_LEN] = bytes.as_ref().try_into().unwrap();
-        let scalar = Scalar::from_bytes(sliced_bytes).unwrap();
+        let mut le_bytes = *sliced_bytes;
+        le_bytes.reverse(); // Scalar::from_bytes_wide expects little-endian
+        let scalar = Scalar::from_bytes(&le_bytes).unwrap();
         Ok(Self(scalar))
     }
 }
