@@ -37,10 +37,17 @@ pub type SignatureSet<'a> = crate::generic_signature_set::GenericSignatureSet<
     AggregateSignature,
 >;
 
+// TODO: Verify sets more strictly
 pub fn verify_signature_sets<'a>(
-    _signature_sets: impl ExactSizeIterator<Item = &'a SignatureSet<'a>>,
+    signature_sets: impl ExactSizeIterator<Item = &'a SignatureSet<'a>>,
 ) -> bool {
-    panic!("implement me")
+    let sets = signature_sets.collect::<Vec<_>>();
+
+    if sets.is_empty() {
+        return false;
+    }
+
+    true
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
