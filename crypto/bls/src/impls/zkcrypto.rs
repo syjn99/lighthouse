@@ -115,14 +115,6 @@ impl TSignature<PublicKey> for Signature {
         let sliced_bytes: &[u8; SIGNATURE_BYTES_LEN] = bytes.as_ref().try_into().unwrap();
         let point = G2Affine::from_compressed(sliced_bytes).unwrap();
 
-        if bool::from(point.is_identity()) {
-            return Err(Error::InvalidSignature);
-        }
-
-        if !bool::from(point.is_torsion_free()) {
-            return Err(Error::InvalidTorsionComponent);
-        }
-
         Ok(Self(point.into()))
     }
 
@@ -166,14 +158,6 @@ impl TAggregateSignature<PublicKey, AggregatePublicKey, Signature> for Aggregate
     fn deserialize(bytes: &[u8]) -> Result<Self, Error> {
         let sliced_bytes: &[u8; SIGNATURE_BYTES_LEN] = bytes.as_ref().try_into().unwrap();
         let point = G2Affine::from_compressed(sliced_bytes).unwrap();
-
-        if bool::from(point.is_identity()) {
-            return Err(Error::InvalidSignature);
-        }
-
-        if !bool::from(point.is_torsion_free()) {
-            return Err(Error::InvalidTorsionComponent);
-        }
 
         Ok(Self(point.into()))
     }
