@@ -511,6 +511,12 @@ macro_rules! test_suite {
     };
 }
 
+#[cfg(feature = "supranational")]
 mod blst {
     test_suite!(blst_implementations);
+}
+
+#[cfg(feature = "zkcrypto")]
+mod zkcrypto {
+    test_suite!(zkcrypto_implementations);
 }

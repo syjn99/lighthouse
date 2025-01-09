@@ -1026,6 +1026,7 @@ version = "0.2.0"
 dependencies = [
  "alloy-primitives",
  "arbitrary",
+ "bls12_381",
  "blst",
  "ethereum_hashing",
  "ethereum_serde_utils",
@@ -1037,6 +1038,18 @@ dependencies = [
  "serde",
  "tree_hash",
  "zeroize",
+]
+
+[[package]]
+name = "bls12_381"
+version = "0.8.0"
+source = "git+https://github.com/zkcrypto/bls12_381?rev=9ea427c0eb1a7e2ac16902a322aea156c496ddb0#9ea427c0eb1a7e2ac16902a322aea156c496ddb0"
+dependencies = [
+ "ff 0.13.0",
+ "group 0.13.0",
+ "pairing",
+ "rand_core",
+ "subtle",
 ]
 
 [[package]]

@@ -134,9 +134,18 @@ define_mod!(
     fake_crypto_implementations,
     crate::impls::fake_crypto::types
 );
+#[cfg(feature = "zkcrypto")]
+define_mod!(zkcrypto_implementations, crate::impls::zkcrypto::types);
 
-#[cfg(all(feature = "supranational", not(feature = "fake_crypto"),))]
+#[cfg(all(
+    feature = "supranational",
+    not(feature = "fake_crypto"),
+    not(feature = "zkcrypto")
+))]
 pub use blst_implementations::*;
 
 #[cfg(feature = "fake_crypto")]
 pub use fake_crypto_implementations::*;
+
+#[cfg(feature = "zkcrypto")]
+pub use zkcrypto_implementations::*;
