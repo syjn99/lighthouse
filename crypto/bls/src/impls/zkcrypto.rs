@@ -1,6 +1,6 @@
 use bls12_381::{
     hash_to_curve::{ExpandMsgXmd, HashToCurve},
-    pairing, G1Affine, G1Projective, G2Affine, G2Projective, Scalar,
+    pairing, G1Affine, G1Projective, G2Affine, G2Projective, Gt, Scalar,
 };
 use rand::{thread_rng, RngCore};
 
@@ -184,8 +184,25 @@ impl TAggregateSignature<PublicKey, AggregatePublicKey, Signature> for Aggregate
     }
 
     fn aggregate_verify(&self, msgs: &[Hash256], pubkeys: &[&GenericPublicKey<PublicKey>]) -> bool {
-        panic!("implement me")
-        // true
+        if msgs.len() != pubkeys.len() || msgs.is_empty() {
+            return false;
+        }
+
+        let gt1 =
+            msgs.iter()
+                .zip(pubkeys.iter())
+                .fold(Gt::identity(), |acc, (msg, pubkey)| {
+                    acc + (&pairing(
+                        &G1Affine::from(pubkey.point().0),
+                        &G2Affine::from(<G2Projective as HashToCurve<
+                            ExpandMsgXmd<sha2::Sha256>,
+                        >>::hash_to_curve(&[*msg], DST)),
+                    ))
+                });
+
+        let gt2 = pairing(&G1Affine::generator(), &G2Affine::from(self.0));
+
+        gt1 == gt2
     }
 }
 
