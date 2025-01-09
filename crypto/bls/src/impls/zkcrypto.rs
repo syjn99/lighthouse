@@ -167,8 +167,20 @@ impl TAggregateSignature<PublicKey, AggregatePublicKey, Signature> for Aggregate
         msg: Hash256,
         pubkeys: &[&GenericPublicKey<PublicKey>],
     ) -> bool {
-        panic!("implement me")
-        // true
+        let agg_pks_point = pubkeys
+            .iter()
+            .fold(
+                AggregatePublicKey(G1Projective::identity()),
+                |acc, pubkey| AggregatePublicKey(acc.0.add(&pubkey.point().0)),
+            )
+            .0;
+        let h =
+            <G2Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve(&[msg], DST);
+
+        let gt1 = pairing(&G1Affine::from(agg_pks_point), &G2Affine::from(h));
+        let gt2 = pairing(&G1Affine::generator(), &G2Affine::from(self.0));
+
+        gt1 == gt2
     }
 
     fn aggregate_verify(&self, msgs: &[Hash256], pubkeys: &[&GenericPublicKey<PublicKey>]) -> bool {
