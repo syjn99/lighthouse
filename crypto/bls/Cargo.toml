@@ -23,7 +23,7 @@ zeroize = { workspace = true }
 
 [features]
 arbitrary = []
-default = ["zkcrypto"]
+default = ["zkcrypto"] # Default to zkcrypto for now
 fake_crypto = []
 supranational = ["blst"]
 supranational-portable = ["supranational", "blst/portable"]
