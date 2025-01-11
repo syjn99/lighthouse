@@ -37,6 +37,7 @@ pub type SignatureSet<'a> = crate::generic_signature_set::GenericSignatureSet<
     AggregateSignature,
 >;
 
+// See https://ethresear.ch/t/fast-verification-of-multiple-bls-signatures/5407
 pub fn verify_signature_sets<'a>(
     signature_sets: impl ExactSizeIterator<Item = &'a SignatureSet<'a>>,
 ) -> bool {
@@ -49,18 +50,19 @@ pub fn verify_signature_sets<'a>(
     let rng = &mut rand::thread_rng();
 
     // Generate random scalars for each set
+    // We can use `Scalar::random`, but `ff` crate must be imported.
     let mut rands: Vec<Scalar> = Vec::with_capacity(sets.len());
     for _ in 0..sets.len() {
         let mut buf = [0u8; 64];
-        while buf[0] == 0 {
-            rng.fill_bytes(&mut buf);
-        }
+        rng.fill_bytes(&mut buf);
         rands.push(Scalar::from_bytes_wide(&buf));
     }
 
-    // Accumulate (e_i * s_i) and (e_i * h(m_i) * P_i) for each set i
+    // e(g1, S*) = Π(e(P_{i,j}, M'_{i,j})) where:
+    // S* = Σ(S_i * r_i)
+    // M'_{i,j} = M_{i,j} * r_i
     let mut agg_sig = G2Projective::identity();
-    let mut agg_pubkey_times_message = G1Projective::identity();
+    let mut rhs = pairing(&G1Affine::generator(), &G2Affine::identity());
 
     for (set, rand) in sets.iter().zip(rands.iter()) {
         // Verify signature point exists and is in correct subgroup
@@ -76,36 +78,28 @@ pub fn verify_signature_sets<'a>(
             return false;
         }
 
-        // Aggregate public keys
-        let agg_pk = set
-            .signing_keys
-            .iter()
-            .fold(G1Projective::identity(), |acc, pk| acc + pk.point().0);
-
-        // Hash message to curve
+        // Hash the message for this set: M_{i,j}
         let h = <G2Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve(
             &[set.message],
             DST,
         );
 
-        // Add to accumulators using random weight
+        // Aggregate public keys: P_{i,j}
+        let agg_pk = set
+            .signing_keys
+            .iter()
+            .fold(G1Projective::identity(), |acc, pk| acc + pk.point().0);
+
+        // Add to accumulators using random weight:
+        // S* += S_i * r_i
         agg_sig += sig_point.0 * rand;
-        agg_pubkey_times_message += agg_pk * rand;
+        // Π(e(P_{i,j}, M'_{i,j})) where M'_{i,j} = M_{i,j} * r_i
+        rhs += pairing(&G1Affine::from(agg_pk), &G2Affine::from(h * rand));
     }
 
-    // Final pairing check
-    let gt1 = pairing(&G1Affine::generator(), &G2Affine::from(agg_sig));
-    let gt2 = pairing(
-        &G1Affine::from(agg_pubkey_times_message),
-        &G2Affine::from(
-            <G2Projective as HashToCurve<ExpandMsgXmd<sha2::Sha256>>>::hash_to_curve(
-                &[sets[0].message],
-                DST,
-            ),
-        ),
-    );
-
-    gt1 == gt2
+    // Final pairing check: e(g1, S*) = Π(e(P_{i,j}, M'_{i,j}))
+    let lhs = pairing(&G1Affine::generator(), &G2Affine::from(agg_sig));
+    lhs == rhs
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
