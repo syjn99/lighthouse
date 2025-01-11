@@ -115,18 +115,31 @@ impl TPublicKey for PublicKey {
     }
 
     fn deserialize(bytes: &[u8]) -> Result<Self, Error> {
-        let sliced_bytes: &[u8; PUBLIC_KEY_BYTES_LEN] = bytes.as_ref().try_into().unwrap();
-        let point = G1Affine::from_compressed(sliced_bytes).unwrap();
+        let sliced_bytes: &[u8; PUBLIC_KEY_BYTES_LEN] =
+            bytes
+                .as_ref()
+                .try_into()
+                .map_err(|_| Error::InvalidByteLength {
+                    got: bytes.len(),
+                    expected: PUBLIC_KEY_BYTES_LEN,
+                })?;
 
-        if bool::from(point.is_identity()) {
-            return Err(Error::InvalidInfinityPublicKey);
+        let point_opt = G1Affine::from_compressed(sliced_bytes);
+        if bool::from(point_opt.is_some()) {
+            let point = point_opt.unwrap();
+
+            if bool::from(point.is_identity()) {
+                return Err(Error::InvalidInfinityPublicKey);
+            }
+
+            if !bool::from(point.is_torsion_free()) {
+                return Err(Error::InvalidTorsionComponent);
+            }
+
+            Ok(Self(point.into()))
+        } else {
+            Err(Error::InvalidPublicKey)
         }
-
-        if !bool::from(point.is_torsion_free()) {
-            return Err(Error::InvalidTorsionComponent);
-        }
-
-        Ok(Self(point.into()))
     }
 
     fn deserialize_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
@@ -171,10 +184,22 @@ impl TSignature<PublicKey> for Signature {
     }
 
     fn deserialize(bytes: &[u8]) -> Result<Self, Error> {
-        let sliced_bytes: &[u8; SIGNATURE_BYTES_LEN] = bytes.as_ref().try_into().unwrap();
-        let point = G2Affine::from_compressed(sliced_bytes).unwrap();
+        let sliced_bytes: &[u8; SIGNATURE_BYTES_LEN] =
+            bytes
+                .as_ref()
+                .try_into()
+                .map_err(|_| Error::InvalidByteLength {
+                    got: bytes.len(),
+                    expected: SIGNATURE_BYTES_LEN,
+                })?;
+        let point_opt = G2Affine::from_compressed(sliced_bytes);
+        if bool::from(point_opt.is_some()) {
+            let point = point_opt.unwrap();
 
-        Ok(Self(point.into()))
+            Ok(Self(point.into()))
+        } else {
+            Err(Error::InvalidSignature)
+        }
     }
 
     fn verify(&self, pubkey: &PublicKey, msg: Hash256) -> bool {
@@ -215,10 +240,22 @@ impl TAggregateSignature<PublicKey, AggregatePublicKey, Signature> for Aggregate
     }
 
     fn deserialize(bytes: &[u8]) -> Result<Self, Error> {
-        let sliced_bytes: &[u8; SIGNATURE_BYTES_LEN] = bytes.as_ref().try_into().unwrap();
-        let point = G2Affine::from_compressed(sliced_bytes).unwrap();
+        let sliced_bytes: &[u8; SIGNATURE_BYTES_LEN] =
+            bytes
+                .as_ref()
+                .try_into()
+                .map_err(|_| Error::InvalidByteLength {
+                    got: bytes.len(),
+                    expected: SIGNATURE_BYTES_LEN,
+                })?;
+        let point_opt = G2Affine::from_compressed(sliced_bytes);
+        if bool::from(point_opt.is_some()) {
+            let point = point_opt.unwrap();
 
-        Ok(Self(point.into()))
+            Ok(Self(point.into()))
+        } else {
+            Err(Error::InvalidSignature)
+        }
     }
 
     fn fast_aggregate_verify(
@@ -293,7 +330,14 @@ impl TSecretKey<Signature, PublicKey> for SecretKey {
     }
 
     fn deserialize(bytes: &[u8]) -> Result<Self, Error> {
-        let sliced_bytes: &[u8; SECRET_KEY_BYTES_LEN] = bytes.as_ref().try_into().unwrap();
+        let sliced_bytes: &[u8; SECRET_KEY_BYTES_LEN] =
+            bytes
+                .as_ref()
+                .try_into()
+                .map_err(|_| Error::InvalidByteLength {
+                    got: bytes.len(),
+                    expected: SECRET_KEY_BYTES_LEN,
+                })?;
         let mut le_bytes = *sliced_bytes;
         le_bytes.reverse(); // Scalar::from_bytes_wide expects little-endian
         let scalar = Scalar::from_bytes(&le_bytes).unwrap();
