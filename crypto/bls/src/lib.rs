@@ -60,6 +60,15 @@ pub enum Error {
     InvalidInfinityPublicKey,
     /// The secret key is all zero bytes, which is invalid.
     InvalidZeroSecretKey,
+    /// An error occurred during the deserialization of a public key.
+    #[cfg(feature = "zkcrypto")]
+    InvalidTorsionComponent,
+    /// The public key is not derived from raw bytes
+    #[cfg(feature = "zkcrypto")]
+    InvalidPublicKey,
+    /// The Signature is not derived from raw bytes
+    #[cfg(feature = "zkcrypto")]
+    InvalidSignature,
 }
 
 #[cfg(feature = "supranational")]
@@ -134,9 +143,18 @@ define_mod!(
     fake_crypto_implementations,
     crate::impls::fake_crypto::types
 );
+#[cfg(feature = "zkcrypto")]
+define_mod!(zkcrypto_implementations, crate::impls::zkcrypto::types);
 
-#[cfg(all(feature = "supranational", not(feature = "fake_crypto"),))]
+#[cfg(all(
+    feature = "supranational",
+    not(feature = "fake_crypto"),
+    not(feature = "zkcrypto")
+))]
 pub use blst_implementations::*;
 
 #[cfg(feature = "fake_crypto")]
 pub use fake_crypto_implementations::*;
+
+#[cfg(feature = "zkcrypto")]
+pub use zkcrypto_implementations::*;
