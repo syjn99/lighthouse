@@ -100,8 +100,6 @@ pub mod withdrawal;
 
 pub mod epoch_cache;
 pub mod slot_data;
-#[cfg(feature = "sqlite")]
-pub mod sqlite;
 
 pub mod blob_sidecar;
 pub mod data_column_sidecar;

@@ -9343,7 +9343,6 @@ dependencies = [
  "rayon",
  "regex",
  "rpds",
- "rusqlite",
  "safe_arith",
  "serde",
  "serde_json",
