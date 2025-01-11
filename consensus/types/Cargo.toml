@@ -11,7 +11,7 @@ harness = false
 [dependencies]
 alloy-primitives = { workspace = true }
 merkle_proof = { workspace = true }
-bls = { workspace = true, features = ["arbitrary"] }
+bls = { workspace = true, features = ["zkcrypto"] }
 kzg = { workspace = true }
 compare_fields = { workspace = true }
 compare_fields_derive = { workspace = true }
