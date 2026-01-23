@@ -11,7 +11,8 @@ pub const EXECUTION_PROOF_TYPE_COUNT: u8 = 8;
 
 /// ExecutionProofId identifies which zkVM/proof system a proof belongs to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct ExecutionProofId(u8);
+#[serde(transparent)]
+pub struct ExecutionProofId(#[serde(with = "serde_utils::quoted_u8")] u8);
 
 impl Encode for ExecutionProofId {
     fn is_ssz_fixed_len() -> bool {

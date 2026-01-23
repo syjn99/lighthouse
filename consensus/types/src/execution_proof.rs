@@ -56,6 +56,7 @@ pub struct ExecutionProof {
     pub block_root: Hash256,
 
     /// The actual proof data
+    #[serde(with = "ssz_types::serde_utils::hex_var_list")]
     pub proof_data: ProofData,
 }
 
