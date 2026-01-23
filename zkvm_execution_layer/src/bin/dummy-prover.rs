@@ -58,6 +58,9 @@ struct Prover {
 
 impl Prover {
     async fn handle_block_gossip(&self, block_root: Hash256, slot: Slot) {
+        // Sleep for a short duration to allow the block to be available in the source node.
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
         let Some(inputs) = self
             .fetch_block_for_proofs(BlockId::Root(block_root), Some(slot))
             .await
@@ -73,6 +76,7 @@ impl Prover {
             );
         }
 
+        info!(?block_root, ?slot, "Submitting dummy proofs for block gossip");
         self.submit_dummy_proofs(inputs).await;
     }
 
@@ -138,7 +142,7 @@ impl Prover {
             };
 
             if let Err(err) = self.target.post_beacon_pool_execution_proofs(&proof).await {
-                debug!(
+                info!(
                     ?block_root,
                     ?slot,
                     ?proof_id,
@@ -146,7 +150,7 @@ impl Prover {
                     "Failed to submit dummy proof"
                 );
             } else {
-                debug!(?block_root, ?slot, ?proof_id, "Submitted dummy proof");
+                info!(?block_root, ?slot, ?proof_id, "Submitted dummy proof");
             }
         }
     }
@@ -171,6 +175,8 @@ impl Prover {
                 return None;
             }
         };
+
+        info!(?block_id, ?slot_hint, "Fetched block for proofs");
 
         let block = block.data();
         let slot = block.slot();
@@ -249,7 +255,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     let mut events = prover
-        .source
+        .target
         .get_events::<MainnetEthSpec>(&[EventTopic::BlockGossip])
         .await
         .map_err(|e| format!("Failed to subscribe to events: {:?}", e))?;

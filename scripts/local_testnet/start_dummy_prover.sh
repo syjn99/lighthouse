@@ -6,7 +6,8 @@ SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 ROOT_DIR="$( cd -- "$SCRIPT_DIR/../.." &> /dev/null && pwd )"
 
 ENCLAVE_NAME="${ENCLAVE_NAME:-local-testnet}"
-CL_SERVICE="${CL_SERVICE:-cl-1-lighthouse-geth}"
+TARGET_SERVICE="${TARGET_SERVICE:-}"
+SOURCE_SERVICE="${SOURCE_SERVICE:-}"
 BEACON_NODE_URL="${BEACON_NODE_URL:-}"
 SOURCE_BEACON_NODE_URL="${SOURCE_BEACON_NODE_URL:-}"
 PROOFS_PER_BLOCK="${PROOFS_PER_BLOCK:-1}"
@@ -14,16 +15,17 @@ PROOF_DELAY_MS="${PROOF_DELAY_MS:-1000}"
 BACKFILL_THRESHOLD_SLOTS="${BACKFILL_THRESHOLD_SLOTS:-32}"
 BACKFILL_INTERVAL_SECS="${BACKFILL_INTERVAL_SECS:-10}"
 
-while getopts "e:s:b:S:p:d:t:i:h" flag; do
+while getopts "e:t:s:T:S:p:d:B:I:h" flag; do
   case "${flag}" in
     e) ENCLAVE_NAME=${OPTARG};;
-    s) CL_SERVICE=${OPTARG};;
-    b) BEACON_NODE_URL=${OPTARG};;
+    t) TARGET_SERVICE=${OPTARG};;
+    s) SOURCE_SERVICE=${OPTARG};;
+    T) BEACON_NODE_URL=${OPTARG};;
     S) SOURCE_BEACON_NODE_URL=${OPTARG};;
     p) PROOFS_PER_BLOCK=${OPTARG};;
     d) PROOF_DELAY_MS=${OPTARG};;
-    t) BACKFILL_THRESHOLD_SLOTS=${OPTARG};;
-    i) BACKFILL_INTERVAL_SECS=${OPTARG};;
+    B) BACKFILL_THRESHOLD_SLOTS=${OPTARG};;
+    I) BACKFILL_INTERVAL_SECS=${OPTARG};;
     h)
       echo "Start the dummy prover against a local testnet."
       echo "Note: Run this after the testnet is up so the beacon node endpoint exists."
@@ -32,38 +34,51 @@ while getopts "e:s:b:S:p:d:t:i:h" flag; do
       echo
       echo "Options:"
       echo "  -e ENCLAVE_NAME           Kurtosis enclave name (default: $ENCLAVE_NAME)"
-      echo "  -s CL_SERVICE             Kurtosis CL service name (default: $CL_SERVICE)"
-      echo "  -b BEACON_NODE_URL        Target beacon node URL (default: from kurtosis)"
-      echo "  -S SOURCE_BEACON_NODE_URL Source beacon node URL (default: target URL)"
+      echo "  -t TARGET_SERVICE         Kurtosis service name for target (proof submission)"
+      echo "  -s SOURCE_SERVICE         Kurtosis service name for source (block events)"
+      echo "  -T BEACON_NODE_URL        Target beacon node URL (overrides -t)"
+      echo "  -S SOURCE_BEACON_NODE_URL Source beacon node URL (overrides -s)"
       echo "  -p PROOFS_PER_BLOCK       Proof IDs to submit per block (default: $PROOFS_PER_BLOCK)"
       echo "  -d PROOF_DELAY_MS         Proof generation delay in ms (default: $PROOF_DELAY_MS)"
-      echo "  -t BACKFILL_THRESHOLD     Backfill threshold in slots (default: $BACKFILL_THRESHOLD_SLOTS)"
-      echo "  -i BACKFILL_INTERVAL      Backfill interval in seconds (default: $BACKFILL_INTERVAL_SECS)"
+      echo "  -B BACKFILL_THRESHOLD     Backfill threshold in slots (default: $BACKFILL_THRESHOLD_SLOTS)"
+      echo "  -I BACKFILL_INTERVAL      Backfill interval in seconds (default: $BACKFILL_INTERVAL_SECS)"
       echo "  -h                        Show this help"
       echo
       echo "Example:"
-      echo "  $0 -e local-testnet -s cl-1-lighthouse-geth -p 2 -d 1000 -t 64 -i 5"
+      echo "  $0 -s cl-1-prysm-geth -t cl-4-prysm-dummy"
+      echo "  $0 -T http://localhost:5052 -S http://localhost:5053"
       exit
       ;;
   esac
 done
 
+# Resolve target URL
 if [ -z "$BEACON_NODE_URL" ]; then
-  if command -v kurtosis &> /dev/null; then
-    if BEACON_NODE_URL=$(kurtosis port print "$ENCLAVE_NAME" "$CL_SERVICE" http 2>/dev/null); then
-      echo "Using beacon node from kurtosis: $BEACON_NODE_URL"
+  if [ -n "$TARGET_SERVICE" ] && command -v kurtosis &> /dev/null; then
+    if BEACON_NODE_URL=$(kurtosis port print "$ENCLAVE_NAME" "$TARGET_SERVICE" http 2>/dev/null); then
+      echo "Target from kurtosis ($TARGET_SERVICE): $BEACON_NODE_URL"
     else
-      echo "Failed to detect beacon node URL via kurtosis. Set -b or BEACON_NODE_URL." >&2
+      echo "Failed to get URL for target service '$TARGET_SERVICE'" >&2
       exit 1
     fi
   else
     BEACON_NODE_URL="http://localhost:5052"
-    echo "kurtosis not found, defaulting to $BEACON_NODE_URL"
+    echo "No target specified, defaulting to $BEACON_NODE_URL"
   fi
 fi
 
+# Resolve source URL
 if [ -z "$SOURCE_BEACON_NODE_URL" ]; then
-  SOURCE_BEACON_NODE_URL="$BEACON_NODE_URL"
+  if [ -n "$SOURCE_SERVICE" ] && command -v kurtosis &> /dev/null; then
+    if SOURCE_BEACON_NODE_URL=$(kurtosis port print "$ENCLAVE_NAME" "$SOURCE_SERVICE" http 2>/dev/null); then
+      echo "Source from kurtosis ($SOURCE_SERVICE): $SOURCE_BEACON_NODE_URL"
+    else
+      echo "Failed to get URL for source service '$SOURCE_SERVICE'" >&2
+      exit 1
+    fi
+  else
+    SOURCE_BEACON_NODE_URL="$BEACON_NODE_URL"
+  fi
 fi
 
 echo "Starting dummy prover..."
