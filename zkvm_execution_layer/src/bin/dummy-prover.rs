@@ -11,6 +11,8 @@ use zkvm_execution_layer::dummy_proof_gen::DummyProofGenerator;
 use zkvm_execution_layer::proof_generation::ProofGenerator;
 
 const DEFAULT_TIMEOUT_SECS: u64 = 12;
+const DEFAULT_RETRY_COUNT: u32 = 3;
+const DEFAULT_RETRY_DELAY_MS: u64 = 100;
 
 /// Generate and submit dummy execution proofs to a beacon node.
 #[derive(Parser, Debug)]
@@ -58,9 +60,6 @@ struct Prover {
 
 impl Prover {
     async fn handle_block_gossip(&self, block_root: Hash256, slot: Slot) {
-        // Sleep for a short duration to allow the block to be available in the source node.
-        tokio::time::sleep(Duration::from_millis(100)).await;
-
         let Some(inputs) = self
             .fetch_block_for_proofs(BlockId::Root(block_root), Some(slot))
             .await
@@ -160,25 +159,72 @@ impl Prover {
         block_id: BlockId,
         slot_hint: Option<Slot>,
     ) -> Option<BlockProofInputs> {
-        let block = match self
-            .source
-            .get_beacon_blinded_blocks::<MainnetEthSpec>(block_id)
-            .await
-        {
-            Ok(Some(response)) => response,
-            Ok(None) => {
-                debug!(?block_id, ?slot_hint, "Block not found in source node");
-                return None;
-            }
-            Err(err) => {
-                warn!(?block_id, ?slot_hint, error = ?err, "Failed to fetch block");
-                return None;
-            }
-        };
+        let mut last_error = None;
 
-        info!(?block_id, ?slot_hint, "Fetched block for proofs");
+        for attempt in 1..=DEFAULT_RETRY_COUNT {
+            match self
+                .source
+                .get_beacon_blinded_blocks::<MainnetEthSpec>(block_id)
+                .await
+            {
+                Ok(Some(response)) => {
+                    info!(?block_id, ?slot_hint, attempt, "Fetched block for proofs");
+                    return self.process_block_response(response, block_id, slot_hint);
+                }
+                Ok(None) => {
+                    if attempt < DEFAULT_RETRY_COUNT {
+                        debug!(
+                            ?block_id,
+                            ?slot_hint,
+                            attempt,
+                            "Block not found in source node, retrying"
+                        );
+                        tokio::time::sleep(Duration::from_millis(DEFAULT_RETRY_DELAY_MS)).await;
+                    } else {
+                        info!(
+                            ?block_id,
+                            ?slot_hint,
+                            "Block not found after {} attempts",
+                            DEFAULT_RETRY_COUNT
+                        );
+                        return None;
+                    }
+                }
+                Err(err) => {
+                    last_error = Some(err);
+                    if attempt < DEFAULT_RETRY_COUNT {
+                        debug!(
+                            ?block_id,
+                            ?slot_hint,
+                            attempt,
+                            error = ?last_error,
+                            "Failed to fetch block, retrying"
+                        );
+                        tokio::time::sleep(Duration::from_millis(DEFAULT_RETRY_DELAY_MS)).await;
+                    }
+                }
+            }
+        }
 
-        let block = block.data();
+        info!(
+            ?block_id,
+            ?slot_hint,
+            error = ?last_error,
+            "Failed to fetch block after {} attempts",
+            DEFAULT_RETRY_COUNT
+        );
+        None
+    }
+
+    fn process_block_response(
+        &self,
+        response: eth2::ExecutionOptimisticFinalizedBeaconResponse<
+            types::SignedBlindedBeaconBlock<MainnetEthSpec>,
+        >,
+        block_id: BlockId,
+        slot_hint: Option<Slot>,
+    ) -> Option<BlockProofInputs> {
+        let block = response.data();
         let slot = block.slot();
         if let Some(expected_slot) = slot_hint {
             if slot != expected_slot {
